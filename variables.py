@@ -1,0 +1,7 @@
+azure_client_id = "<your_azure_client_id>"
+azure_tenant_id = "<your_azure_tenant_id>"
+azure_client_secret = "<your_azure_client_secret>"
+azure_subscription_id = "<your_azure_subscription_id>"
+resource_group = "<resource_group_name>"
+vault_name = "<recovery_services_vault_name>"
+storage_account_name = "<starage_account_name>"
