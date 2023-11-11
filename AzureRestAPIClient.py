@@ -102,12 +102,6 @@ class AzureRestApiClient:
 
     def account_sas_token(self, storage_account_name, expire_time):
         self.api_version = "2023-01-01"
-        """
-            json_object_set(root, "signedExpiry", json_string(formattedExpiration));
-            json_object_set(root, "signedPermission", json_string("rwdl"));
-            json_object_set(root, "signedResourceTypes", json_string("sco"));
-            json_object_set(root, "signedServices", json_string("bf"));
-        """
         expiry = datetime.utcnow() + timedelta(hours=expire_time)
 
         request_body = {

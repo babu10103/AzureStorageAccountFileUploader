@@ -18,9 +18,9 @@ chunk_size_bytes = 1 * 1024 * 1024
 
 
 def main():
-    storage_account_name = "babutestsa"
-    container_name = "test"
-    blob_name = "newblob2.vhdx"
+    storage_account_name = "<your storage account name>"
+    container_name = "<container name>"
+    blob_name = "<blob name>"
 
     az_client = AzureRestApiClient()
     # SAS token to be generated from the portal or using SharedKey Generation - Account level SAS
