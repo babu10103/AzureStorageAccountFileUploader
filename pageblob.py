@@ -14,6 +14,7 @@ parser.add_argument('-s', '--sleep_time', default=5, type=int,
 
 args = parser.parse_args()
 
+# chunk size should be below 4 MB
 chunk_size_bytes = 1 * 1024 * 1024
 
 
