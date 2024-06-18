@@ -27,14 +27,14 @@ def main():
     # SAS token to be generated from the portal or using SharedKey Generation - Account level SAS
     sas_token = az_client.get_access_token(storage_account_name, 8)
 
-    source_url = 'C:\\Users\\Banda_Babu\\Downloads\\mretestvm_ss_new.vhdx'
+    source_path = '/path/to/your/vhd'
     try:
         print("Start time", datetime.datetime.now())
         blob_url = f"https://{storage_account_name}.blob.core.windows.net/{container_name}/{blob_name}"
 
-        create_page_blob(blob_url, sas_token, get_file_size(source_url))
+        create_page_blob(blob_url, sas_token, get_file_size(source_path))
 
-        upload_large_file_as_pages(blob_url, sas_token, source_url)
+        upload_large_file_as_pages(blob_url, sas_token, source_path)
 
         print("End time", datetime.datetime.now())
 
