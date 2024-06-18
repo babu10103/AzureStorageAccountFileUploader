@@ -1,54 +1,35 @@
 import os
 import requests
 import datetime
-import argparse
 from AzureRestAPIClient import AzureRestApiClient
-
-parser = argparse.ArgumentParser("A program to create a vulnerability status report")
-parser.add_argument("--file_name", default="vuln_status_report")
-parser.add_argument('-f', '--format', default='CSV', choices=["CSV", "JSON"], help="Report format")
-parser.add_argument('-t', '--tries', default=4, type=int,
-                    help="How many times to retry downloading the report, i.e. wait for the report to be generated")
-parser.add_argument('-s', '--sleep_time', default=5, type=int,
-                    help="The amount of time to sleep in-between (re-)tries to download the report")
-
-args = parser.parse_args()
 
 # chunk size should be below 4 MB
 chunk_size_bytes = 1 * 1024 * 1024
 
 
-def main():
-    storage_account_name = "<your storage account name>"
-    container_name = "<container name>"
+def upload_blob():
+    storage_account = "<your storage account name>"
+    container = "<container name>"
     blob_name = "<blob name>"
-
-    az_client = AzureRestApiClient()
-    # SAS token to be generated from the portal or using SharedKey Generation - Account level SAS
-    sas_token = az_client.get_access_token(storage_account_name, 8)
-
     source_path = '/path/to/your/vhd'
+
+    client = AzureRestApiClient()
+    sas_token = client.account_sas_token(storage_account, 8)
+
     try:
-        print("Start time", datetime.datetime.now())
-        blob_url = f"https://{storage_account_name}.blob.core.windows.net/{container_name}/{blob_name}"
+        blob_url = f"https://{storage_account}.blob.core.windows.net/{container}/{blob_name}"
+        blob_size = get_file_size(source_path)
 
-        create_page_blob(blob_url, sas_token, get_file_size(source_path))
-
+        if not create_page_blob(blob_url, sas_token, blob_size):
+            raise Exception("Failed to create PageBlob.")
         upload_large_file_as_pages(blob_url, sas_token, source_path)
 
-        print("End time", datetime.datetime.now())
-
     except Exception as e:
-        print("An error occurred:", str(e))
+        print(f"An error occurred: {e}")
 
 
-"""
-First step is to create an empty page blob with the file size
-"""
-
-
-def create_page_blob(dest_url, sas_token, file_size):
-    put_blob_url = f"{dest_url}?{sas_token}"
+def create_page_blob(dest_url: str, sas_token: str, file_size: int) -> bool:
+    blob_url = f"{dest_url}?{sas_token}"
     headers = {
         "x-ms-version": "2020-04-08",
         "x-ms-date": datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S GMT"),
@@ -56,47 +37,44 @@ def create_page_blob(dest_url, sas_token, file_size):
         "x-ms-blob-content-length": str(file_size),
         "x-ms-blob-sequence-number": "0"
     }
-    response = requests.put(put_blob_url, headers=headers)
 
-    if response.status_code == 201:
-        print("Status Code", response.status_code, "for the initial page blob")
-    else:
-        print("Failed to create Pageblob. Status code:", response.status_code)
-        print("Response:", response.text)
+    try:
+        response = requests.put(blob_url, headers=headers)
+        response.raise_for_status()
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to create PageBlob. Error: {str(e)}")
+        return False
 
 
-def upload_large_file_as_pages(dest_url, sas_token, source_url):
-    with open(source_url, 'rb') as source_stream:
-        p_offset = 0
+def upload_large_file_as_pages(destination_url, sas_token, source_file_path):
+    with open(source_file_path, 'rb') as source_file:
+        offset = 0
         while True:
-            page_blob_data = source_stream.read(chunk_size_bytes)
-            if not page_blob_data:
+            chunk_data = source_file.read(chunk_size_bytes)
+            if not chunk_data:
                 break
-            if chunk_size_bytes != len(page_blob_data):
-                until = p_offset + len(page_blob_data) - 1
+            if chunk_size_bytes != len(chunk_data):
+                end_offset = offset + len(chunk_data) - 1
             else:
-                until = p_offset + chunk_size_bytes - 1
-            page_sequence = f"bytes={p_offset}-{until}"
-            print(page_sequence)
-            p_offset = until + 1
-            create_put_page_request(dest_url, sas_token, page_sequence, page_blob_data)
+                end_offset = offset + chunk_size_bytes - 1
+            page_sequence = f"bytes={offset}-{end_offset}"
+            offset = end_offset + 1
+            create_put_page_request(destination_url, sas_token, page_sequence, chunk_data)
 
 
-def create_put_page_request(dest_url, sas_token, page_sequence, page_data):
-    put_block_url = f"{dest_url}?comp=page&{sas_token}"
+def create_put_page_request(destination_url, sas_token, page_sequence, page_data):
     headers = {
         "x-ms-version": "2020-04-08",
         "x-ms-page-write": "update",
         "x-ms-date": datetime.datetime.now().strftime("%a, %d %b %Y %H:%M:%S GMT"),
         "Range": page_sequence
     }
-    response = requests.put(put_block_url, headers=headers, data=page_data)
-
+    response = requests.put(f"{destination_url}?comp=page&{sas_token}", headers=headers, data=page_data)
     if response.status_code == 201:
-        print("Status Code", response.status_code, "for the chunk")
+        return
     else:
-        print("Failed to upload block. Status code:", response.status_code)
-        print("Response:", response.text)
+        raise Exception(f"Failed to upload block. Status code: {response.status_code}. Response: {response.text}")
 
 
 def get_file_size(source_url):
@@ -104,4 +82,4 @@ def get_file_size(source_url):
 
 
 if __name__ == "__main__":
-    main()
+    upload_blob()

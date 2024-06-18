@@ -12,12 +12,15 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
 def log_http_response(response):
-    if response.status_code == 200:
+    status_code = response.status_code
+    response_text = response.text
+
+    if status_code == 200:
         logging.info("Request was successful.")
-    elif response.status_code == 500:
-        logging.error(f"Internal Server Error.\n{response.text}")
+    elif status_code == 500:
+        logging.error("Internal Server Error.\n" + response_text)
     else:
-        logging.error(f"{response.text}")
+        logging.error(response_text)
 
 def _to_utc_datetime(value):
     return value.strftime('%Y-%m-%dT%H:%M:%SZ')
